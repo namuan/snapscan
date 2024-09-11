@@ -6,6 +6,7 @@ from datetime import datetime
 from PIL import Image
 import threading
 import time
+import numpy as np
 
 
 class ScreenshotApp(rumps.App):
@@ -20,6 +21,7 @@ class ScreenshotApp(rumps.App):
         self.scheduling_thread = None
         self.is_scheduling = False
         self.stop_event = threading.Event()
+        self.previous_screenshot = None
 
     def get_screenshot_path(self):
         now = datetime.now()
@@ -35,9 +37,9 @@ class ScreenshotApp(rumps.App):
 
     @rumps.clicked("Take Screenshot Now")
     def take_screenshot(self, _):
-        self.capture_screenshot()
+        self.capture_screenshot(force_save=True)
 
-    def capture_screenshot(self):
+    def capture_screenshot(self, force_save=False):
         monitors = get_monitors()
         num_monitors = len(monitors)
         print(f"Number of monitors detected: {num_monitors}")
@@ -54,9 +56,6 @@ class ScreenshotApp(rumps.App):
                 max_height = max(max_height, img.height)
                 print(f"Screenshot captured for monitor {i}")
 
-        path, timestamp = self.get_screenshot_path()
-        filename = os.path.join(path, f"{timestamp}.png")
-
         if num_monitors > 1:
             # Scale up images to match the highest resolution
             scaled_screenshots = []
@@ -71,19 +70,41 @@ class ScreenshotApp(rumps.App):
 
             # Stitch images together
             total_width = sum(img.width for img in scaled_screenshots)
-            stitched_image = Image.new('RGB', (total_width, max_height))
+            current_screenshot = Image.new('RGB', (total_width, max_height))
             x_offset = 0
             for img in scaled_screenshots:
-                stitched_image.paste(img, (x_offset, 0))
+                current_screenshot.paste(img, (x_offset, 0))
                 x_offset += img.width
-
-            # Save the stitched image
-            stitched_image.save(filename)
-            print(f"Stitched screenshot saved: {filename}")
         else:
-            # Save single monitor screenshot
-            screenshots[0].save(filename)
-            print(f"Single monitor screenshot saved: {filename}")
+            current_screenshot = screenshots[0]
+
+        if force_save or self.has_screen_changed(current_screenshot):
+            path, timestamp = self.get_screenshot_path()
+            filename = os.path.join(path, f"{timestamp}.png")
+            current_screenshot.save(filename)
+            print(f"Screenshot saved: {filename}")
+            self.previous_screenshot = current_screenshot
+        else:
+            print("No changes detected, screenshot not saved.")
+
+    def has_screen_changed(self, current_screenshot):
+        if self.previous_screenshot is None:
+            return True
+
+        # Convert images to numpy arrays for comparison
+        current_array = np.array(current_screenshot)
+        previous_array = np.array(self.previous_screenshot)
+
+        # Check if the shapes are different (which would indicate a change)
+        if current_array.shape != previous_array.shape:
+            return True
+
+        # Calculate the difference between the two arrays
+        diff = np.abs(current_array - previous_array)
+
+        # If the maximum difference is above a threshold, consider it changed
+        # You can adjust this threshold as needed
+        return np.max(diff) > 10
 
     def scheduled_task(self):
         while not self.stop_event.is_set():
@@ -112,7 +133,6 @@ class ScreenshotApp(rumps.App):
         if self.is_scheduling:
             self.is_scheduling = False
             self.stop_event.set()
-            # Don't join the thread here, let it finish naturally
             print("Scheduling stopped")
             rumps.notification("Screenshot Scheduler", "Scheduling Stopped", "Screenshot scheduling has been stopped")
 
