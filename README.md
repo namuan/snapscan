@@ -1,4 +1,4 @@
-# SnapSpan
+# 📸 SnapSpan
 
 One click, all screens, unified
 
@@ -26,6 +26,11 @@ One click, all screens, unified
 This command will install all required dependencies using pip. 
 If you need to upgrade any of these dependencies, simply re-run this command.
 
+## Building the package
+
+To build the SnapSpan package, run `make package`. 
+This will create a tarball of the project in the `dist` directory.
+
 ## Contributing
 
 Contributions are welcome! Please create a new issue to discuss changes or propose new features.
@@ -33,8 +38,3 @@ Contributions are welcome! Please create a new issue to discuss changes or propo
 ## License
 
 SnapSpan is released under the MIT License.
-
-## Building the package
-
-To build the SnapSpan package, run `make package`. 
-This will create a tarball of the project in the `dist` directory.
