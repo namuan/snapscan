@@ -9,7 +9,7 @@ One click, all screens, unified
 - Stitch images together
 - Save screenshots with optimization and compression
 - Detect changes between consecutive screenshots
-- Schedule screenshot captures at regular intervals
+- Schedule screenshot captures at regular intervals (every 60 seconds)
 
 ## Usage
 
