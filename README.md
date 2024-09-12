@@ -33,3 +33,8 @@ Contributions are welcome! Please create a new issue to discuss changes or propo
 ## License
 
 SnapSpan is released under the MIT License.
+
+## Building the package
+
+To build the SnapSpan package, run `make package`. 
+This will create a tarball of the project in the `dist` directory.
