@@ -1,39 +1,66 @@
 import rumps
 from screeninfo import get_monitors
 from mss import mss
-import os
+from pathlib import Path
 from datetime import datetime
 from PIL import Image
 import threading
 import time
 import numpy as np
+import logging
+
+
+def setup_logger():
+    user_home = Path.home()
+    log_dir = user_home / ".logs" / "snap_scan"
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    log_file = log_dir / f"snap_scan_{datetime.now().strftime('%Y%m%d')}.log"
+
+    # Create a logger
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+
+    # Remove all existing handlers
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+
+    # Create file handler
+    file_handler = logging.FileHandler(str(log_file))
+    file_handler.setLevel(logging.INFO)
+
+    # Create console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+
+    # Create formatter and add it to the handlers
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    file_handler.setFormatter(formatter)
+    console_handler.setFormatter(formatter)
+
+    # Add the handlers to the logger
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
 
 
 class ScreenshotApp(rumps.App):
     def __init__(self):
         super(ScreenshotApp, self).__init__("📷")
-        self.menu = [
-            "Take Screenshot Now",
-            None,  # This adds a separator line in the menu
-            rumps.MenuItem("Start Scheduling", callback=self.toggle_scheduling),
-            None  # This adds another separator line before Quit
-        ]
+        self.menu = ["Take Screenshot Now", None, rumps.MenuItem("Stop Scheduling", callback=self.toggle_scheduling)]
         self.scheduling_thread = None
         self.is_scheduling = False
         self.stop_event = threading.Event()
         self.previous_screenshot = None
+        setup_logger()  # Set up the logger
+        self.start_scheduling()
 
-    def get_screenshot_path(self):
+    @staticmethod
+    def get_screenshot_path():
         now = datetime.now()
-        year = now.strftime('%Y')
-        month = now.strftime('%m')
-        day = now.strftime('%d')
-        timestamp = now.strftime('%Y%m%d_%H%M%S')
-
-        path = os.path.join("screenshots", year, month, day)
-        os.makedirs(path, exist_ok=True)
-
-        return path, timestamp
+        base_path = Path.home() / "Documents" / "Screenshots"
+        path = base_path / now.strftime('%Y/%m/%d')
+        path.mkdir(parents=True, exist_ok=True)
+        return path, now.strftime('%Y%m%d_%H%M%S')
 
     @rumps.clicked("Take Screenshot Now")
     def take_screenshot(self, _):
@@ -42,7 +69,7 @@ class ScreenshotApp(rumps.App):
     def capture_screenshot(self, force_save=False):
         monitors = get_monitors()
         num_monitors = len(monitors)
-        print(f"Number of monitors detected: {num_monitors}")
+        logging.info(f"Number of monitors detected: {num_monitors}")
 
         screenshots = []
         max_width = 0
@@ -54,7 +81,7 @@ class ScreenshotApp(rumps.App):
                 screenshots.append(img)
                 max_width = max(max_width, img.width)
                 max_height = max(max_height, img.height)
-                print(f"Screenshot captured for monitor {i}")
+                logging.info(f"Screenshot captured for monitor {i}")
 
         if num_monitors > 1:
             # Scale up images to match the highest resolution
@@ -80,12 +107,16 @@ class ScreenshotApp(rumps.App):
 
         if force_save or self.has_screen_changed(current_screenshot):
             path, timestamp = self.get_screenshot_path()
-            filename = os.path.join(path, f"{timestamp}.png")
-            current_screenshot.save(filename)
-            print(f"Screenshot saved: {filename}")
+            filename = path / f"{timestamp}.png"
+
+            # Save the PNG with optimization
+            current_screenshot.save(str(filename), format='PNG', optimize=True, compress_level=9)
+
+            logging.info(f"Screenshot saved: {filename}")
+            logging.info(f"File size: {filename.stat().st_size / 1024:.2f} KB")
             self.previous_screenshot = current_screenshot
         else:
-            print("No changes detected, screenshot not saved.")
+            logging.info("No changes detected, screenshot not saved.")
 
     def has_screen_changed(self, current_screenshot):
         if self.previous_screenshot is None:
@@ -126,14 +157,14 @@ class ScreenshotApp(rumps.App):
             self.stop_event.clear()
             self.scheduling_thread = threading.Thread(target=self.scheduled_task)
             self.scheduling_thread.start()
-            print("Scheduling started")
+            logging.info("Scheduling started")
             rumps.notification("Screenshot Scheduler", "Scheduling Started", "Screenshots will be taken every minute")
 
     def stop_scheduling(self):
         if self.is_scheduling:
             self.is_scheduling = False
             self.stop_event.set()
-            print("Scheduling stopped")
+            logging.info("Scheduling stopped")
             rumps.notification("Screenshot Scheduler", "Scheduling Stopped", "Screenshot scheduling has been stopped")
 
     def terminate(self):
@@ -142,4 +173,6 @@ class ScreenshotApp(rumps.App):
 
 
 if __name__ == "__main__":
+    setup_logger()
+    logging.info("Starting ScreenshotApp")
     ScreenshotApp().run()

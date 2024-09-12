@@ -13,3 +13,5 @@ fireprofile
 /option-trades/
 *.iml
 screenshots/
+/build/
+/dist/
