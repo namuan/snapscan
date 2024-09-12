@@ -21,8 +21,10 @@ One click, all screens, unified
 ## Requirements
 
 - Python 3.x
-- Pillow library (`pip install pillow`)
-- Rumps library (`pip install rumps`)
+
+- To set up your environment, run `make deps`. 
+This command will install all required dependencies using pip. 
+If you need to upgrade any of these dependencies, simply re-run this command.
 
 ## Contributing
 
@@ -31,7 +33,3 @@ Contributions are welcome! Please create a new issue to discuss changes or propo
 ## License
 
 SnapSpan is released under the MIT License.
-
-## Installation and Upgrades
-
-To set up your environment, run `make deps`. This command will install all required dependencies using pip. If you need to upgrade any of these dependencies, simply re-run this command.
