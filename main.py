@@ -8,6 +8,7 @@ import threading
 import time
 import numpy as np
 import logging
+import subprocess
 
 
 def setup_logger():
@@ -52,6 +53,8 @@ class ScreenshotApp(rumps.App):
             "Take Screenshot Now",
             None,
             rumps.MenuItem("Stop Scheduling", callback=self.toggle_scheduling),
+            None,
+            "Open Screenshots Folder",
         ]
         self.scheduling_thread = None
         self.is_scheduling = False
@@ -71,6 +74,12 @@ class ScreenshotApp(rumps.App):
     @rumps.clicked("Take Screenshot Now")
     def take_screenshot(self, _):
         self.capture_screenshot(force_save=True)
+
+    @rumps.clicked("Open Screenshots Folder")
+    def open_screenshots_folder(self, _):
+        base_path = Path.home() / "Documents" / "Screenshots"
+        subprocess.run(["open", str(base_path)])
+        logging.info(f"Opened screenshots folder: {base_path}")
 
     def capture_screenshot(self, force_save=False):
         monitors = get_monitors()

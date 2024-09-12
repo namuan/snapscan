@@ -7,14 +7,14 @@ deps: ## Install dependencies
 	$(PY) -m pip install --upgrade -r requirements.txt
 	$(PY) -m pip install --upgrade pip
 
-lint: ## Run black for code formatting
+lint: clean ## Run black for code formatting
 	black . --exclude venv
 
 clean: ## Clean package
 	find . -type d -name '__pycache__' | xargs rm -rf
 	rm -rf build dist
 
-package: ## Run installer
+package: lint ## Run installer
 	pyinstaller main.spec
 
 .PHONY: help
