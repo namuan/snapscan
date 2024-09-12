@@ -3,3 +3,4 @@ screeninfo
 mss
 Pillow
 numpy
+pyobjc-framework-Quartz

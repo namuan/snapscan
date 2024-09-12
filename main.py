@@ -1,19 +1,20 @@
-import rumps
-from screeninfo import get_monitors
-from mss import mss
-from pathlib import Path
-from datetime import datetime
-from PIL import Image
-import threading
-import time
-import numpy as np
 import logging
 import subprocess
+import threading
+from datetime import datetime
+from pathlib import Path
+
+import Quartz
+import numpy as np
+import rumps
+from PIL import Image
+from mss import mss
+from screeninfo import get_monitors
 
 
 def setup_logger():
     user_home = Path.home()
-    log_dir = user_home / ".logs" / "snap_scan"
+    log_dir = user_home / ".logs" / "snap_span"
     log_dir.mkdir(parents=True, exist_ok=True)
 
     log_file = log_dir / f"snap_scan_{datetime.now().strftime('%Y%m%d')}.log"
@@ -44,6 +45,15 @@ def setup_logger():
     # Add the handlers to the logger
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
+
+
+def is_screen_locked():
+    """Check if the macOS screen is locked."""
+    session = Quartz.CGSessionCopyCurrentDictionary()
+    if session:
+        screen_locked = session.get("CGSSessionScreenIsLocked", 0)
+        return bool(screen_locked)
+    return False
 
 
 class ScreenshotApp(rumps.App):
@@ -82,6 +92,10 @@ class ScreenshotApp(rumps.App):
         logging.info(f"Opened screenshots folder: {base_path}")
 
     def capture_screenshot(self, force_save=False):
+        if is_screen_locked() and not force_save:
+            logging.info("Screen is locked. Skipping screenshot.")
+            return
+
         monitors = get_monitors()
         num_monitors = len(monitors)
         logging.info(f"Number of monitors detected: {num_monitors}")
@@ -163,7 +177,15 @@ class ScreenshotApp(rumps.App):
 
     def scheduled_task(self):
         while not self.stop_event.is_set():
-            self.capture_screenshot()
+            try:
+                screen_locked = is_screen_locked()
+                if not screen_locked:
+                    logging.info("Screen is unlocked. Capturing screenshot.")
+                    self.capture_screenshot()
+                else:
+                    logging.info("Screen is locked. Skipping screenshot.")
+            except Exception as e:
+                logging.error(f"Error in scheduled task: {str(e)}", exc_info=True)
             # Wait for 60 seconds or until the stop event is set
             self.stop_event.wait(timeout=60)
 
@@ -181,11 +203,11 @@ class ScreenshotApp(rumps.App):
             self.stop_event.clear()
             self.scheduling_thread = threading.Thread(target=self.scheduled_task)
             self.scheduling_thread.start()
-            logging.info("Scheduling started")
+            logging.info("Scheduling started (will pause when screen is locked)")
             rumps.notification(
                 "Screenshot Scheduler",
                 "Scheduling Started",
-                "Screenshots will be taken every minute",
+                "Screenshots will be taken every minute when screen is unlocked",
             )
 
     def stop_scheduling(self):

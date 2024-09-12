@@ -31,9 +31,14 @@ exe = EXE(pyz,
           strip=False,
           upx=True,
           runtime_tmpdir=None,
-          console=False)
+          console=False,
+          entitlements_file='entitlements.plist')  # Add this line
 
 app = BUNDLE(exe,
              name='SnapSpan.app',
              icon='assets/icon.icns',
-             bundle_identifier='com.github.namuan.snapspan')
+             bundle_identifier='com.github.namuan.snapspan',
+             info_plist={
+                 'NSMicrophoneUsageDescription': 'This app requires microphone access for audio recording.',
+                 'NSCameraUsageDescription': 'This app requires camera access for screen recording.'
+             })
