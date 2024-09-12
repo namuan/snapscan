@@ -34,7 +34,9 @@ def setup_logger():
     console_handler.setLevel(logging.INFO)
 
     # Create formatter and add it to the handlers
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    formatter = logging.Formatter(
+        "%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+    )
     file_handler.setFormatter(formatter)
     console_handler.setFormatter(formatter)
 
@@ -46,7 +48,11 @@ def setup_logger():
 class ScreenshotApp(rumps.App):
     def __init__(self):
         super(ScreenshotApp, self).__init__("📷")
-        self.menu = ["Take Screenshot Now", None, rumps.MenuItem("Stop Scheduling", callback=self.toggle_scheduling)]
+        self.menu = [
+            "Take Screenshot Now",
+            None,
+            rumps.MenuItem("Stop Scheduling", callback=self.toggle_scheduling),
+        ]
         self.scheduling_thread = None
         self.is_scheduling = False
         self.stop_event = threading.Event()
@@ -58,9 +64,9 @@ class ScreenshotApp(rumps.App):
     def get_screenshot_path():
         now = datetime.now()
         base_path = Path.home() / "Documents" / "Screenshots"
-        path = base_path / now.strftime('%Y/%m/%d')
+        path = base_path / now.strftime("%Y/%m/%d")
         path.mkdir(parents=True, exist_ok=True)
-        return path, now.strftime('%Y%m%d_%H%M%S')
+        return path, now.strftime("%Y%m%d_%H%M%S")
 
     @rumps.clicked("Take Screenshot Now")
     def take_screenshot(self, _):
@@ -75,9 +81,13 @@ class ScreenshotApp(rumps.App):
         max_width = 0
         max_height = 0
         with mss() as sct:
-            for i, monitor in enumerate(sct.monitors[1:], 1):  # Skip the first monitor (entire screen)
+            for i, monitor in enumerate(
+                sct.monitors[1:], 1
+            ):  # Skip the first monitor (entire screen)
                 screenshot = sct.grab(monitor)
-                img = Image.frombytes("RGB", screenshot.size, screenshot.bgra, "raw", "BGRX")
+                img = Image.frombytes(
+                    "RGB", screenshot.size, screenshot.bgra, "raw", "BGRX"
+                )
                 screenshots.append(img)
                 max_width = max(max_width, img.width)
                 max_height = max(max_height, img.height)
@@ -89,7 +99,10 @@ class ScreenshotApp(rumps.App):
             for img in screenshots:
                 if img.width != max_width or img.height != max_height:
                     scale_factor = max(max_width / img.width, max_height / img.height)
-                    new_size = (int(img.width * scale_factor), int(img.height * scale_factor))
+                    new_size = (
+                        int(img.width * scale_factor),
+                        int(img.height * scale_factor),
+                    )
                     scaled_img = img.resize(new_size, Image.LANCZOS)
                     scaled_screenshots.append(scaled_img)
                 else:
@@ -97,7 +110,7 @@ class ScreenshotApp(rumps.App):
 
             # Stitch images together
             total_width = sum(img.width for img in scaled_screenshots)
-            current_screenshot = Image.new('RGB', (total_width, max_height))
+            current_screenshot = Image.new("RGB", (total_width, max_height))
             x_offset = 0
             for img in scaled_screenshots:
                 current_screenshot.paste(img, (x_offset, 0))
@@ -110,7 +123,9 @@ class ScreenshotApp(rumps.App):
             filename = path / f"{timestamp}.png"
 
             # Save the PNG with optimization
-            current_screenshot.save(str(filename), format='PNG', optimize=True, compress_level=9)
+            current_screenshot.save(
+                str(filename), format="PNG", optimize=True, compress_level=9
+            )
 
             logging.info(f"Screenshot saved: {filename}")
             logging.info(f"File size: {filename.stat().st_size / 1024:.2f} KB")
@@ -158,14 +173,22 @@ class ScreenshotApp(rumps.App):
             self.scheduling_thread = threading.Thread(target=self.scheduled_task)
             self.scheduling_thread.start()
             logging.info("Scheduling started")
-            rumps.notification("Screenshot Scheduler", "Scheduling Started", "Screenshots will be taken every minute")
+            rumps.notification(
+                "Screenshot Scheduler",
+                "Scheduling Started",
+                "Screenshots will be taken every minute",
+            )
 
     def stop_scheduling(self):
         if self.is_scheduling:
             self.is_scheduling = False
             self.stop_event.set()
             logging.info("Scheduling stopped")
-            rumps.notification("Screenshot Scheduler", "Scheduling Stopped", "Screenshot scheduling has been stopped")
+            rumps.notification(
+                "Screenshot Scheduler",
+                "Scheduling Stopped",
+                "Screenshot scheduling has been stopped",
+            )
 
     def terminate(self):
         self.stop_scheduling()
