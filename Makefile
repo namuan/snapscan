@@ -17,6 +17,9 @@ clean: ## Clean package
 package: lint ## Run installer
 	pyinstaller main.spec
 
+install-macosx: package ## Installs application in users Application folder
+	./scripts/install-macosx.sh SnapSpan.app
+
 .PHONY: help
 .DEFAULT_GOAL := help
 
