@@ -18,7 +18,7 @@ One click, all screens, unified
 1. Run the application using `python main.py`
 2. Click on the menu bar icon to access scheduling options
 3. Choose from "Start Scheduling" or "Stop Scheduling"
-4. Select the interval for scheduled screenshot captures (default: 60 seconds)
+4. Interval for scheduled screenshot captures (default: 60 seconds)
 
 ## Requirements
 
