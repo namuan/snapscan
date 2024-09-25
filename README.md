@@ -10,6 +10,8 @@ One click, all screens, unified
 - Save screenshots with optimization and compression
 - Detect changes between consecutive screenshots
 - Schedule screenshot captures at regular intervals (every 60 seconds)
+- Save timestamped list of all running applications
+- Highlight currently active window
 
 ## Usage
 
