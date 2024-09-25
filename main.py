@@ -1,14 +1,16 @@
+import json
 import logging
 import subprocess
 import threading
 from datetime import datetime
 from pathlib import Path
 
-import Quartz
+import AppKit
 import numpy as np
+import Quartz
 import rumps
-from PIL import Image
 from mss import mss
+from PIL import Image
 from screeninfo import get_monitors
 
 
@@ -47,6 +49,60 @@ def setup_logger():
     logger.addHandler(console_handler)
 
 
+def get_window_info():
+    # Get the currently active application
+    workspace = AppKit.NSWorkspace.sharedWorkspace()
+    active_app = workspace.activeApplication()
+    active_app_name = active_app["NSApplicationName"]
+
+    # Get all windows
+    window_list = Quartz.CGWindowListCopyWindowInfo(
+        Quartz.kCGWindowListOptionOnScreenOnly
+        | Quartz.kCGWindowListExcludeDesktopElements,
+        Quartz.kCGNullWindowID,
+    )
+
+    window_info = []
+
+    for window in window_list:
+        app_name = window.get("kCGWindowOwnerName", "Unknown")
+        window_name = window.get("kCGWindowName", "Untitled")
+
+        if window_name:
+            window_info.append(
+                {
+                    "app_name": app_name,
+                    "window_name": window_name,
+                    "is_active": app_name == active_app_name,
+                }
+            )
+
+    return {"timestamp": datetime.now().isoformat(), "windows": window_info}
+
+
+def save_to_file(data, file_path):
+    # Convert data to JSON string
+    json_string = json.dumps(data)
+
+    # Append the JSON string to the file
+    with file_path.open("a") as f:
+        f.write(json_string + "\n")
+
+
+def log_window_data(directory_path):
+    # Get the window data
+    window_data = get_window_info()
+
+    # Create the file name using the current timestamp
+    file_name = "window_data.jsonl"
+
+    # Create the full file path
+    file_path = directory_path / file_name
+
+    # Save the window data to the file
+    save_to_file(window_data, file_path)
+
+
 def is_screen_locked():
     """Check if the macOS screen is locked."""
     session = Quartz.CGSessionCopyCurrentDictionary()
@@ -58,7 +114,7 @@ def is_screen_locked():
 
 class ScreenshotApp(rumps.App):
     def __init__(self):
-        super(ScreenshotApp, self).__init__("📷")
+        super().__init__("📷")
         self.menu = [
             "Take Screenshot Now",
             None,
@@ -152,6 +208,8 @@ class ScreenshotApp(rumps.App):
 
             logging.info(f"Screenshot saved: {filename}")
             logging.info(f"File size: {filename.stat().st_size / 1024:.2f} KB")
+            logging.info("Saving all application names")
+            log_window_data(path)
             self.previous_screenshot = current_screenshot
         else:
             logging.info("No changes detected, screenshot not saved.")
