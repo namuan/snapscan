@@ -22,13 +22,13 @@ One click, all screens, unified
 
 - Python 3.x
 
-- To set up your environment, run `make deps`. 
-This command will install all required dependencies using pip. 
+- To set up your environment, run `make deps`.
+This command will install all required dependencies using pip.
 If you need to upgrade any of these dependencies, simply re-run this command.
 
 ## Building the package
 
-To build the SnapSpan package, run `make package`. 
+To build the SnapSpan package, run `make package`.
 This will create a tarball of the project in the `dist` directory.
 
 ## Contributing

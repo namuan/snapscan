@@ -4,17 +4,21 @@ PY=./venv/bin/python3
 .SILENT: ;               # no need for @
 
 deps: ## Install dependencies
-	$(PY) -m pip install --upgrade -r requirements.txt
+	$(PY) -m pip install --upgrade -r requirements-dev.txt
 	$(PY) -m pip install --upgrade pip
 
-lint: clean ## Run black for code formatting
-	black . --exclude venv
+pre-commit: ## Manually run all precommit hooks
+	./venv/bin/pre-commit install
+	./venv/bin/pre-commit run --all-files
+
+pre-commit-tool: ## Manually run a single pre-commit hook
+	./venv/bin/pre-commit run $(TOOL) --all-files
 
 clean: ## Clean package
 	find . -type d -name '__pycache__' | xargs rm -rf
 	rm -rf build dist
 
-package: lint ## Run installer
+package: pre-commit ## Run installer
 	pyinstaller main.spec
 
 install-macosx: package ## Installs application in users Application folder
