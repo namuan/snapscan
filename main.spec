@@ -40,5 +40,6 @@ app = BUNDLE(exe,
              bundle_identifier='com.github.namuan.snapspan',
              info_plist={
                  'NSMicrophoneUsageDescription': 'This app requires microphone access for audio recording.',
-                 'NSCameraUsageDescription': 'This app requires camera access for screen recording.'
+                 'NSCameraUsageDescription': 'This app requires camera access for screen recording.',
+                 'LSUIElement': True,
              })
