@@ -3,6 +3,10 @@ PY=./venv/bin/python3
 
 .SILENT: ;               # no need for @
 
+setup: clean ## Re-initiates virtualenv
+	rm -rf venv
+	python3 -m venv venv
+
 deps: ## Install dependencies
 	$(PY) -m pip install --upgrade -r requirements-dev.txt
 	$(PY) -m pip install --upgrade pip
@@ -19,7 +23,7 @@ clean: ## Clean package
 	rm -rf build dist
 
 package: pre-commit ## Run installer
-	pyinstaller main.spec
+	./venv/bin/pyinstaller main.spec
 
 install-macosx: package ## Installs application in users Application folder
 	./scripts/install-macosx.sh SnapSpan.app
