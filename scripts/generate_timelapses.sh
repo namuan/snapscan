@@ -99,17 +99,6 @@ for year_dir in "$BASE_DIR"/*; do
       date_str="$year_base-$month_base-$day_base"
       out_path="$day_dir/timelapse-${year_base}${month_base}${day_base}.mp4"
 
-      if [[ -f "$out_path" ]]; then
-        if [[ "$MISSING_ONLY" == true ]]; then
-          echo "Exists, skipping due to --missing-only: $out_path"
-          continue
-        fi
-        if [[ "$OVERWRITE" != true ]]; then
-          echo "Already exists, skipping: $out_path (use --overwrite to rebuild)"
-          continue
-        fi
-      fi
-
       cmd=("$PYTHON" "$TL_SCRIPT" --date "$date_str" --base-dir "$BASE_DIR" --fps "$FPS")
       [[ "$OVERWRITE" == true ]] && cmd+=("--overwrite")
       [[ "$DELETE" == true ]] && cmd+=("--delete")

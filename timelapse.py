@@ -14,8 +14,6 @@ Usage examples:
   python timelapse.py --date 2025-10-21 --base-dir /custom/Screenshots --output /tmp/out.mp4
 """
 
-from __future__ import annotations
-
 import argparse
 import shutil
 import subprocess
@@ -138,7 +136,7 @@ def run_ffmpeg(sequence_pattern: Path, fps: int, output: Path, overwrite: bool) 
             f"Output file already exists: {output}. Use --overwrite to replace.",
             file=sys.stderr,
         )
-        sys.exit(5)
+        return
 
     cmd = [
         "ffmpeg",
