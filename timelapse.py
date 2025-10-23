@@ -60,6 +60,11 @@ def parse_args() -> argparse.Namespace:
         help="Overwrite output file if it exists",
     )
     parser.add_argument(
+        "--skip-if-existing",
+        action="store_true",
+        help="Skip generation if the output file already exists",
+    )
+    parser.add_argument(
         "--delete",
         action="store_true",
         help="Delete screenshots after successful video generation",
@@ -102,9 +107,6 @@ def find_images(date_dir: Path) -> list[Path]:
         sys.exit(3)
     # PNG screenshots produced by the app; ignore JSONL metadata
     images = sorted([p for p in date_dir.iterdir() if p.suffix.lower() == ".png"])
-    if not images:
-        print(f"No screenshots found in: {date_dir}", file=sys.stderr)
-        sys.exit(4)
     return images
 
 
@@ -127,16 +129,9 @@ def prepare_sequence_symlinks(images: list[Path], tmpdir: Path) -> Path:
     return tmpdir / "%06d.png"
 
 
-def run_ffmpeg(sequence_pattern: Path, fps: int, output: Path, overwrite: bool) -> None:
+def run_ffmpeg(sequence_pattern: Path, fps: int, output: Path, overwrite: bool) -> int:
     # Ensure parent folder exists
     output.parent.mkdir(parents=True, exist_ok=True)
-
-    if output.exists() and not overwrite:
-        print(
-            f"Output file already exists: {output}. Use --overwrite to replace.",
-            file=sys.stderr,
-        )
-        return
 
     cmd = [
         "ffmpeg",
@@ -158,14 +153,11 @@ def run_ffmpeg(sequence_pattern: Path, fps: int, output: Path, overwrite: bool) 
         str(output),
     ]
 
-    # Remove the "-y"/"-n" placeholder if needed
-    cmd = [c for c in cmd if c not in ("-y", "-n")] + (["-y"] if overwrite else [])
-
     try:
         subprocess.run(cmd, check=True)
+        return 0
     except subprocess.CalledProcessError as e:
-        print(f"ffmpeg failed with exit code {e.returncode}", file=sys.stderr)
-        sys.exit(e.returncode or 6)
+        return e.returncode or 6
 
 
 def main() -> None:
@@ -177,7 +169,9 @@ def main() -> None:
     date_dir = build_date_dir(base_dir, d)
 
     images = find_images(date_dir)
-    print(f"Found {len(images)} screenshots in {date_dir}")
+    if not images:
+        print(f"{d.isoformat()} - skipped: no screenshots in {date_dir}")
+        sys.exit(0)
 
     output = (
         Path(args.output).expanduser()
@@ -185,22 +179,41 @@ def main() -> None:
         else default_output_path(date_dir, d)
     )
 
+    if output.exists() and not args.overwrite:
+        if args.skip_if_existing:
+            print(f"{d.isoformat()} - skipped: output exists ({output})")
+        else:
+            print(
+                f"{d.isoformat()} - skipped: output exists ({output}); use --overwrite"
+            )
+        sys.exit(0)
+
     with tempfile.TemporaryDirectory(prefix="snapspan-frames-") as t:
         tmpdir = Path(t)
         sequence_pattern = prepare_sequence_symlinks(images, tmpdir)
-        run_ffmpeg(sequence_pattern, args.fps, output, overwrite=args.overwrite)
+        exit_code = run_ffmpeg(
+            sequence_pattern, args.fps, output, overwrite=args.overwrite
+        )
 
-    print(f"Video generated: {output}")
-
-    if args.delete:
-        deleted = 0
-        for p in images:
-            try:
-                p.unlink()
-                deleted += 1
-            except OSError:
-                print(f"Warning: failed to delete {p}", file=sys.stderr)
-        print(f"Deleted {deleted} screenshot(s)")
+    if exit_code == 0:
+        if args.delete:
+            deleted = 0
+            for p in images:
+                try:
+                    p.unlink()
+                    deleted += 1
+                except OSError:
+                    # Keep one-line status; warn via stderr without breaking the summary
+                    print(f"Warning: failed to delete {p}", file=sys.stderr)
+            print(
+                f"{d.isoformat()} - generated: {output} (deleted {deleted} screenshots)"
+            )
+        else:
+            print(f"{d.isoformat()} - generated: {output}")
+        sys.exit(0)
+    else:
+        print(f"{d.isoformat()} - failed: ffmpeg exit {exit_code} for {output}")
+        sys.exit(exit_code)
 
 
 if __name__ == "__main__":

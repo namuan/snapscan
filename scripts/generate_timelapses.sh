@@ -5,7 +5,6 @@ BASE_DIR="${BASE_DIR:-$HOME/Documents/Screenshots}"
 FPS=30
 OVERWRITE=false
 DELETE=false
-MISSING_ONLY=false
 PYTHON="${PYTHON:-python3}"
 
 usage() {
@@ -20,7 +19,6 @@ Options:
   --fps N               Frames per second (default: $FPS)
   --overwrite           Overwrite existing output videos
   --delete              Delete screenshots after successful generation
-  --missing-only        Process only dates that are missing the timelapse output
   --python PATH         Python interpreter to run timelapse.py (default: $PYTHON)
   -h, --help            Show this help
 
@@ -42,8 +40,6 @@ while [[ $# -gt 0 ]]; do
       OVERWRITE=true; shift;;
     --delete)
       DELETE=true; shift;;
-    --missing-only)
-      MISSING_ONLY=true; shift;;
     --python)
       PYTHON="$2"; shift 2;;
     -h|--help)
@@ -53,12 +49,6 @@ while [[ $# -gt 0 ]]; do
       usage; exit 1;;
   esac
 done
-
-# Ensure base dir exists
-if [[ ! -d "$BASE_DIR" ]]; then
-  echo "Base dir not found: $BASE_DIR" >&2
-  exit 1
-fi
 
 # Resolve timelapse.py path (repo root is one level up from scripts/)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -87,23 +77,12 @@ for year_dir in "$BASE_DIR"/*; do
 
       found_any=true
 
-      # Skip if no screenshots
-      shopt -s nullglob nocaseglob
-      pngs=("$day_dir"/*.png)
-      shopt -u nocaseglob
-      if [[ ${#pngs[@]} -eq 0 ]]; then
-        echo "Skipping $year_base/$month_base/$day_base — no screenshots"
-        continue
-      fi
-
       date_str="$year_base-$month_base-$day_base"
-      out_path="$day_dir/timelapse-${year_base}${month_base}${day_base}.mp4"
 
-      cmd=("$PYTHON" "$TL_SCRIPT" --date "$date_str" --base-dir "$BASE_DIR" --fps "$FPS")
+      cmd=("$PYTHON" "$TL_SCRIPT" --date "$date_str" --base-dir "$BASE_DIR" --fps "$FPS" --skip-if-existing)
       [[ "$OVERWRITE" == true ]] && cmd+=("--overwrite")
       [[ "$DELETE" == true ]] && cmd+=("--delete")
 
-      echo "Generating: $out_path"
       "${cmd[@]}"
     done
   done
