@@ -33,58 +33,60 @@ from mlx_vlm import load, generate
 from mlx_vlm.prompt_utils import apply_chat_template
 from mlx_vlm.utils import load_config
 
-# --------- CONFIG QWEN / MLX ---------
+# --------- QWEN / MLX CONFIG ---------
 MODEL_PATH = "mlx-community/Qwen3-VL-2B-Instruct-4bit"
 RESIZE_DIM = (384, 384)
 
-PREFIXES_A_SUPPRIMER = [
-    "cette image montre",
-    "l'image montre",
-    "sur cette image",
-    "dans cette image",
-    "voici",
-    "c'est",
-    "je vois",
-    "je peux voir",
-    "il y a",
-    "on voit",
-    "une vue de",
+PREFIXES_TO_REMOVE = [
+    "this image shows",
+    "the image shows",
+    "in this image",
+    "on this image",
+    "here is",
+    "it's",
+    "it is",
+    "i see",
+    "i can see",
+    "there is",
+    "we see",
+    "a view of",
 ]
 
 
-# --------- CHARGEMENT DES MODÈLES ---------
+# --------- MODEL LOADING ---------
 
 
 def load_qwen_model():
-    print(f"⬇️ Chargement du modèle VLM : {MODEL_PATH}...")
+    print(f"⬇️ Loading VLM model: {MODEL_PATH}...")
     model, processor = load(MODEL_PATH, trust_remote_code=True)
     config = load_config(MODEL_PATH)
-    print("✅ Qwen3-VL chargé.")
+    print("✅ Qwen3-VL loaded.")
     return model, processor, config
 
 
 def load_whisper_model(name: str):
-    print(f"⬇️ Chargement du modèle Whisper : {name}...")
+    print(f"⬇️ Loading Whisper model: {name}...")
     model = whisper.load_model(name)
-    print(f"✅ Whisper {name} chargé.")
+    print(f"✅ Whisper {name} loaded.")
     return model
 
 
-# --------- UTILITAIRES TEXTE / TEMPS ---------
+# --------- TEXT / TIME UTILITIES ---------
 
 
 def clean_caption(raw_text: str) -> str:
+    """Clean caption text by removing common boilerplate prefixes and trailing punctuation."""
     cleaned = raw_text.strip()
     if not cleaned:
         return ""
 
     lower_clean = cleaned.lower()
 
-    # évite les réponses du genre "désolé..."
-    if "désolé" in lower_clean or "sorry" in lower_clean:
+    # avoid apology responses
+    if "sorry" in lower_clean:
         return ""
 
-    for prefix in PREFIXES_A_SUPPRIMER:
+    for prefix in PREFIXES_TO_REMOVE:
         if lower_clean.startswith(prefix):
             cleaned = cleaned[len(prefix) :]
             lower_clean = cleaned.lower()
@@ -96,7 +98,7 @@ def clean_caption(raw_text: str) -> str:
         flags=re.IGNORECASE,
     ).strip()
 
-    # coupe à la première ponctuation forte depuis la fin
+    # cut at the first strong punctuation from the end
     m = re.search(r"[\.!?]", cleaned[::-1])
     if m:
         end_pos = len(cleaned) - m.start()
@@ -115,12 +117,12 @@ def format_time_str(t_sec: float) -> str:
     return f"{minutes:02d}:{seconds:02d}"
 
 
-# --------- FEATURES POUR SCÈNES ---------
+# --------- FEATURES FOR SCENES ---------
 
 
 def compute_frame_feature(frame_bgr) -> np.ndarray:
     """
-    Crée une empreinte simple de l'image pour la détection de scènes.
+    Create a simple image fingerprint for scene detection.
     -> grayscale, resize 64x64, vector 0–1.
     """
     gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
@@ -129,24 +131,24 @@ def compute_frame_feature(frame_bgr) -> np.ndarray:
     return vec.flatten()
 
 
-# --------- PASS 1 : DÉTECTION DE SCÈNES (SANS QWEN) ---------
+# --------- PASS 1: SCENE DETECTION (WITHOUT QWEN) ---------
 
 
 def detect_scenes(
     video_path: str, sample_fps: float = 1.0, scene_threshold: float = 0.20
 ):
     """
-    Passe 1 : on parcourt la vidéo à sample_fps (ex: 1 image/s),
-    on calcule un feature par frame, et on détecte les changements
-    de scène selon un seuil de différence moyenne.
+    Pass 1: iterate the video at sample_fps (e.g., 1 frame/sec),
+    compute a feature per frame, and detect scene changes based on
+    an average-difference threshold.
 
-    Retourne :
-    - scenes_raw : liste de dicts { "start_sec", "end_sec" }
-    - duration_sec : durée approx de la vidéo
+    Returns:
+    - scenes_raw: list of dicts { "start_sec", "end_sec" }
+    - duration_sec: approximate video duration
     """
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
-        raise RuntimeError(f"Impossible d'ouvrir la vidéo : {video_path}")
+        raise RuntimeError(f"Unable to open video: {video_path}")
 
     base_fps = cap.get(cv2.CAP_PROP_FPS)
     if base_fps <= 0:
@@ -157,13 +159,11 @@ def detect_scenes(
 
     frame_interval = max(1, int(round(base_fps / sample_fps)))
 
-    print(f"[SCENES] FPS vidéo ≈ {base_fps:.2f}")
-    print(f"[SCENES] Frames totales : {total_frames}")
-    print(f"[SCENES] Durée approx : {duration_sec:.1f} s")
-    print(
-        f"[SCENES] Échantillonnage à {sample_fps} img/s => intervalle {frame_interval} frames"
-    )
-    print(f"[SCENES] Seuil de scène : {scene_threshold}")
+    print(f"[SCENES] Video FPS ≈ {base_fps:.2f}")
+    print(f"[SCENES] Total frames: {total_frames}")
+    print(f"[SCENES] Approx duration: {duration_sec:.1f} s")
+    print(f"[SCENES] Sampling at {sample_fps} fps => interval {frame_interval} frames")
+    print(f"[SCENES] Scene threshold: {scene_threshold}")
 
     scenes_raw = []
     last_feat = None
@@ -185,21 +185,21 @@ def detect_scenes(
         feat = compute_frame_feature(frame)
 
         if last_feat is None:
-            # première frame
+            # first frame
             current_start_sec = t_sec
             prev_t_sec = t_sec
             last_feat = feat
         else:
             diff = float(np.mean(np.abs(feat - last_feat)))
             if diff > scene_threshold:
-                # clôture de la scène précédente
+                # close previous scene
                 scenes_raw.append(
                     {
                         "start_sec": current_start_sec,
                         "end_sec": prev_t_sec,
                     }
                 )
-                # nouvelle scène
+                # new scene
                 current_start_sec = t_sec
 
             prev_t_sec = t_sec
@@ -207,7 +207,7 @@ def detect_scenes(
 
         frame_idx += 1
 
-    # clôture de la dernière scène
+    # close the last scene
     if current_start_sec is not None:
         end_sec = duration_sec if duration_sec > 0 else prev_t_sec
         scenes_raw.append(
@@ -219,7 +219,7 @@ def detect_scenes(
 
     cap.release()
 
-    print(f"[SCENES] Nombre de scènes détectées : {len(scenes_raw)}")
+    print(f"[SCENES] Number of scenes detected: {len(scenes_raw)}")
     for i, sc in enumerate(scenes_raw, start=1):
         print(
             f"  SCENE {i}: {format_time_str(sc['start_sec'])} - {format_time_str(sc['end_sec'])}"
@@ -228,16 +228,16 @@ def detect_scenes(
     return scenes_raw, duration_sec
 
 
-# --------- PASS 2 : QWEN SUR UNE FRAME REPRÉSENTATIVE PAR SCÈNE ---------
+# --------- PASS 2: QWEN ON A REPRESENTATIVE FRAME PER SCENE ---------
 
 
 def grab_frame_at_time(video_path: str, t_sec: float):
     """
-    Récupère une frame à t_sec (en secondes).
+    Retrieve a frame at t_sec (in seconds).
     """
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
-        raise RuntimeError(f"Impossible d'ouvrir la vidéo : {video_path}")
+        raise RuntimeError(f"Unable to open video: {video_path}")
 
     cap.set(cv2.CAP_PROP_POS_MSEC, t_sec * 1000.0)
     ret, frame = cap.read()
@@ -258,8 +258,8 @@ def describe_scene_qwen(
     prompt: str,
 ):
     """
-    Choisit un temps représentatif (milieu de la scène),
-    récupère la frame correspondante et la donne à Qwen-VL.
+    Choose a representative time (middle of the scene),
+    retrieve the corresponding frame and send it to Qwen-VL.
     """
     rep_sec = (start_sec + end_sec) / 2.0
     frame = grab_frame_at_time(video_path, rep_sec)
@@ -299,9 +299,9 @@ def describe_all_scenes(
     model, processor, config, video_path: str, scenes_raw, max_tokens: int, prompt: str
 ):
     """
-    Pour chaque scène brute (start_sec, end_sec),
-    appelle Qwen-VL UNE fois,
-    et retourne une liste de scènes enrichies :
+    For each raw scene (start_sec, end_sec),
+    call Qwen-VL ONCE,
+    and return a list of enriched scenes:
     {
       "start_sec": ...,
       "end_sec": ...,
@@ -330,7 +330,7 @@ def describe_all_scenes(
             prompt=prompt,
         )
         if caption is None:
-            caption = "(Description indisponible)"
+            caption = "(Description unavailable)"
 
         scene_entry = {
             "start_sec": start_sec,
@@ -342,7 +342,7 @@ def describe_all_scenes(
         print("    ->", caption)
         scenes.append(scene_entry)
 
-    print(f"[VLM-SCENE] Temps total VLM scènes : {time.time() - t0:.1f} s")
+    print(f"[VLM-SCENE] Total VLM time for scenes: {time.time() - t0:.1f} s")
     return scenes
 
 
@@ -353,17 +353,17 @@ def transcribe_audio_whisper(
     whisper_model, video_path: str, language: str | None = None
 ) -> dict:
     """
-    Transcrit directement la vidéo (Whisper utilise ffmpeg en interne).
-    Retourne l'objet complet (avec segments).
+    Transcribe the video directly (Whisper uses ffmpeg internally).
+    Returns the full object (with segments).
     """
-    print("[WHISPER] Transcription en cours...")
+    print("[WHISPER] Transcription in progress...")
     t0 = time.time()
     result = whisper_model.transcribe(video_path, language=language)
-    print(f"[WHISPER] Transcription terminée en {time.time() - t0:.1f} s")
+    print(f"[WHISPER] Transcription completed in {time.time() - t0:.1f} s")
     return result
 
 
-# --------- CONSTRUCTION DU TEXTE FINAL ---------
+# --------- BUILD FINAL TEXT ---------
 
 
 def build_output_text(
@@ -371,40 +371,40 @@ def build_output_text(
 ) -> str:
     lines = []
 
-    lines.append("### CONTEXTE VIDEO POUR LLM (UTF-8)\n")
-    lines.append(f"Fichier vidéo d'origine : {video_path}")
-    lines.append(f"Durée approximative : {duration_sec:.1f} secondes\n")
+    lines.append("### VIDEO CONTEXT FOR LLM (UTF-8)\n")
+    lines.append(f"Original video file: {video_path}")
+    lines.append(f"Approximate duration: {duration_sec:.1f} seconds\n")
 
-    # --- SECTION 0 : description globale approximative ---
-    lines.append("SECTION 0 : DESCRIPTION GLOBALE (à partir des scènes)\n")
+    # --- SECTION 0: approximate global description ---
+    lines.append("SECTION 0: GLOBAL DESCRIPTION (from scenes)\n")
     if scenes:
         first = scenes[0]
         mid = scenes[len(scenes) // 2]
         last = scenes[-1]
 
         lines.append(
-            f"- Début [{first['start_str']} - {first['end_str']}]: {first['caption']}"
+            f"- Start [{first['start_str']} - {first['end_str']}]: {first['caption']}"
         )
         if mid is not first and mid is not last:
             lines.append(
-                f"- Milieu [{mid['start_str']} - {mid['end_str']}]: {mid['caption']}"
+                f"- Middle [{mid['start_str']} - {mid['end_str']}]: {mid['caption']}"
             )
         lines.append(
-            f"- Fin [{last['start_str']} - {last['end_str']}]: {last['caption']}"
+            f"- End [{last['start_str']} - {last['end_str']}]: {last['caption']}"
         )
     else:
-        lines.append("(Aucune scène détectée.)")
+        lines.append("(No scenes detected.)")
     lines.append("")
 
-    # --- SECTION 1 : transcription audio ---
-    lines.append("SECTION 1 : TRANSCRIPTION AUDIO (Whisper)\n")
+    # --- SECTION 1: audio transcription ---
+    lines.append("SECTION 1: AUDIO TRANSCRIPTION (Whisper)\n")
     full_text = transcription.get("text", "").strip()
-    lines.append("TEXTE COMPLET :")
-    lines.append(full_text if full_text else "(Transcription vide ou indisponible.)")
+    lines.append("FULL TEXT:")
+    lines.append(full_text if full_text else "(Empty or unavailable transcription.)")
     lines.append("")
 
     if "segments" in transcription:
-        lines.append("SEGMENTS HORODATES :")
+        lines.append("TIMESTAMPED SEGMENTS:")
         for seg in transcription["segments"]:
             start = seg.get("start", 0.0)
             end = seg.get("end", 0.0)
@@ -414,17 +414,17 @@ def build_output_text(
             lines.append(f"[{m1:02d}:{s1:02d} - {m2:02d}:{s2:02d}] {txt}")
         lines.append("")
 
-    # --- SECTION 2 : scènes visuelles décrites ---
-    lines.append("SECTION 2 : SCENES VISUELLES (Qwen3-VL, 1 description par scène)\n")
+    # --- SECTION 2: described visual scenes ---
+    lines.append("SECTION 2: VISUAL SCENES (Qwen3-VL, 1 description per scene)\n")
     if not scenes:
-        lines.append("(Aucune scène disponible.)")
+        lines.append("(No scenes available.)")
     else:
         for idx, sc in enumerate(scenes, start=1):
             lines.append(f"SCENE {idx} [{sc['start_str']} - {sc['end_str']}]")
-            lines.append(f"- Description : {sc['caption']}")
+            lines.append(f"- Description: {sc['caption']}")
             lines.append("")
 
-    lines.append("\nFIN DU CONTEXTE.\n")
+    lines.append("\nEND OF CONTEXT.\n")
     return "\n".join(lines)
 
 
@@ -433,83 +433,83 @@ def build_output_text(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Analyse vidéo V3.1 : détection de scènes + Whisper + Qwen3-VL (1 description par scène)."
+        description="Video analysis V3.1: scene detection + Whisper + Qwen3-VL (1 description per scene)."
     )
     parser.add_argument(
-        "video", help="Chemin de la vidéo (ex: .mp4, .mov iPhone, etc.)"
+        "video", help="Path to the video (e.g., .mp4, iPhone .mov, etc.)"
     )
     parser.add_argument(
         "--sample-fps",
         type=float,
         default=1.0,
-        help="FPS d'échantillonnage pour détecter les scènes (défaut: 1.0)",
+        help="Sampling FPS to detect scenes (default: 1.0)",
     )
     parser.add_argument(
         "--scene-threshold",
         type=float,
         default=0.20,
-        help="Seuil de changement de scène (différence moyenne 0-1, défaut: 0.20)",
+        help="Scene change threshold (average difference 0–1, default: 0.20)",
     )
     parser.add_argument(
         "--whisper-model",
         type=str,
         default="small",
-        help="Modèle Whisper: small, medium, large-v3, etc. (défaut: small)",
+        help="Whisper model: small, medium, large-v3, etc. (default: small)",
     )
     parser.add_argument(
         "--whisper-lang",
         type=str,
         default=None,
-        help="Code langue (ex: 'fr'), ou None pour auto-détection.",
+        help="Language code (e.g., 'en'), or None for auto-detection.",
     )
     parser.add_argument(
         "--max-tokens",
         type=int,
         default=60,
-        help="Max tokens générés par Qwen-VL par scène (défaut: 60)",
+        help="Max tokens generated by Qwen-VL per scene (default: 60)",
     )
     parser.add_argument(
         "--prompt",
         type=str,
         default=(
-            "Décris factuellement ce qui est présent dans l'image en français. "
-            "Sois direct et précis, sans interprétation inutile."
+            "Describe factually what is present in the image in English. "
+            "Be direct and precise, without unnecessary interpretation."
         ),
-        help="Prompt de description pour Qwen-VL (défaut: description factuelle en français).",
+        help="Description prompt for Qwen-VL (default: factual description in English).",
     )
     parser.add_argument(
         "--out",
         type=str,
-        default="contexte_video_v3_1.txt",
-        help="Fichier texte de sortie (UTF-8).",
+        default="video_context_v3_1.txt",
+        help="Output text file (UTF-8).",
     )
     args = parser.parse_args()
 
     video_path = os.path.abspath(args.video)
     if not os.path.exists(video_path):
-        raise FileNotFoundError(f"Vidéo introuvable : {video_path}")
+        raise FileNotFoundError(f"Video not found: {video_path}")
 
-    # 1) Détection de scènes (rapide, sans modèles)
+    # 1) Scene detection (fast, without models)
     scenes_raw, duration_sec = detect_scenes(
         video_path,
         sample_fps=args.sample_fps,
         scene_threshold=args.scene_threshold,
     )
 
-    # 2) Whisper d'abord (audio)
+    # 2) Whisper first (audio)
     model_whisper = load_whisper_model(args.whisper_model)
     transcription = transcribe_audio_whisper(
         model_whisper, video_path, language=args.whisper_lang
     )
 
-    # 🔥 Libère Whisper de la RAM
+    # 🔥 Free Whisper from RAM
     del model_whisper
     gc.collect()
 
-    # 3) Puis Qwen-VL (vision)
+    # 3) Then Qwen-VL (vision)
     model_vlm, processor_vlm, config_vlm = load_qwen_model()
 
-    # 4) Description de chaque scène (1 frame représentative)
+    # 4) Description of each scene (1 representative frame)
     scenes = describe_all_scenes(
         model_vlm,
         processor_vlm,
@@ -520,7 +520,7 @@ def main():
         prompt=args.prompt,
     )
 
-    # 5) Construction du texte final
+    # 5) Build the final text
     output_text = build_output_text(
         transcription,
         scenes,
@@ -530,10 +530,8 @@ def main():
 
     out_path = Path(args.out)
     out_path.write_text(output_text, encoding="utf-8")
-    print(f"\n✅ Fichier contexte V3.1 généré : {out_path}")
-    print(
-        "   Tu peux maintenant copier/coller ce fichier dans Open WebUI ou LM Studio (RAG)."
-    )
+    print(f"\n✅ Context file V3.1 generated: {out_path}")
+    print("   You can now copy/paste this file into Open WebUI or LM Studio (RAG).")
 
 
 if __name__ == "__main__":
