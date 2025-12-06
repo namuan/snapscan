@@ -49,9 +49,9 @@ class MainWindow(QMainWindow):
 
     def setup_ui(self):
         central = QWidget()
-        root = QHBoxLayout()
-        root.setContentsMargins(8, 8, 8, 8)
-        root.setSpacing(12)
+        root = QVBoxLayout()
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
         central.setLayout(root)
         self.setCentralWidget(central)
 
@@ -60,21 +60,38 @@ class MainWindow(QMainWindow):
         self._progress.hide()
         self.statusBar().addPermanentWidget(self._progress)
 
+        self._video_player = VideoPlayerWidget()
+        root.addWidget(self._video_player)
+
+        bottom = QWidget()
+        bottom_layout = QHBoxLayout()
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
+        bottom_layout.setSpacing(0)
+        bottom.setLayout(bottom_layout)
+        root.addWidget(bottom)
+
         self._calendar = CalendarWidget(self._fs)
-        root.addWidget(self._calendar, stretch=0)
+        bottom_layout.addWidget(self._calendar)
 
         right = QWidget()
         right_layout = QVBoxLayout()
-        right_layout.setContentsMargins(8, 8, 8, 8)
-        right_layout.setSpacing(10)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(0)
         right.setLayout(right_layout)
-        root.addWidget(right, stretch=1)
+        bottom_layout.addWidget(right)
 
-        self._video_player = VideoPlayerWidget()
-        right_layout.addWidget(self._video_player, stretch=3)
+        right_layout.addWidget(self._video_player.get_controls_widget())
 
         self._timeline = WindowDataTimeline()
-        right_layout.addWidget(self._timeline, stretch=2)
+        right_layout.addWidget(self._timeline)
+
+        right_layout.setStretch(0, 0)
+        right_layout.setStretch(1, 1)
+
+        root.setStretch(0, 8)
+        root.setStretch(1, 2)
+        bottom_layout.setStretch(0, 3)
+        bottom_layout.setStretch(1, 7)
 
         self._calendar.date_selected.connect(self.on_date_selected)
         self._calendar.error_occurred.connect(self.on_component_error)

@@ -47,9 +47,15 @@ class VideoPlayerWidget(QWidget):
         self._status_label = QLabel()
 
         top = QVBoxLayout()
-        top.setContentsMargins(8, 8, 8, 8)
-        top.setSpacing(8)
+        top.setContentsMargins(0, 0, 0, 0)
+        top.setSpacing(0)
         top.addWidget(self._video)
+        self.setLayout(top)
+
+        self._controls = QWidget()
+        ctrl_v = QVBoxLayout()
+        ctrl_v.setContentsMargins(0, 0, 0, 0)
+        ctrl_v.setSpacing(8)
         ctrl = QHBoxLayout()
         ctrl.setContentsMargins(0, 0, 0, 0)
         ctrl.setSpacing(10)
@@ -59,9 +65,9 @@ class VideoPlayerWidget(QWidget):
         ctrl.addWidget(self._duration_label)
         ctrl.addWidget(QLabel("Vol"))
         ctrl.addWidget(self._volume_slider)
-        top.addLayout(ctrl)
-        top.addWidget(self._status_label)
-        self.setLayout(top)
+        ctrl_v.addLayout(ctrl)
+        ctrl_v.addWidget(self._status_label)
+        self._controls.setLayout(ctrl_v)
 
         self._play_btn.clicked.connect(self._toggle_play)
         self._position_slider.sliderMoved.connect(self._on_slider_moved)
@@ -170,3 +176,6 @@ class VideoPlayerWidget(QWidget):
         self._status_label.setText(msg)
         self.error_occurred.emit(msg)
         self.loading_changed.emit(False)
+
+    def get_controls_widget(self) -> QWidget:
+        return self._controls
