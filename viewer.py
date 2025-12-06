@@ -122,6 +122,7 @@ class MainWindow(QMainWindow):
 
         if self._video_player:
             self._video_player.load_video(video_path)
+            self._video_player.play()
 
         entries: list[WindowDataEntry] = []
         wd_path = self._fs.get_window_data_path(py_date)
