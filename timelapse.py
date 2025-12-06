@@ -67,7 +67,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--delete",
         action="store_true",
-        help="Delete screenshots after successful video generation",
+        help="Delete screenshots after generation or if output already exists",
     )
     return parser.parse_args()
 
@@ -168,6 +168,10 @@ def main() -> None:
     base_dir = Path(args.base_dir).expanduser()
     date_dir = build_date_dir(base_dir, d)
 
+    if d == datetime.today().date():
+        print(f"{d.isoformat()} - skipped: today; ongoing")
+        sys.exit(0)
+
     images = find_images(date_dir)
     if not images:
         print(f"{d.isoformat()} - skipped: no screenshots in {date_dir}")
@@ -180,12 +184,29 @@ def main() -> None:
     )
 
     if output.exists() and not args.overwrite:
-        if args.skip_if_existing:
-            print(f"{d.isoformat()} - skipped: output exists ({output})")
+        if args.delete:
+            deleted = 0
+            for p in images:
+                try:
+                    p.unlink()
+                    deleted += 1
+                except OSError:
+                    print(f"Warning: failed to delete {p}", file=sys.stderr)
+            if args.skip_if_existing:
+                print(
+                    f"{d.isoformat()} - skipped: output exists ({output}) (deleted {deleted} screenshots)"
+                )
+            else:
+                print(
+                    f"{d.isoformat()} - skipped: output exists ({output}); use --overwrite (deleted {deleted} screenshots)"
+                )
         else:
-            print(
-                f"{d.isoformat()} - skipped: output exists ({output}); use --overwrite"
-            )
+            if args.skip_if_existing:
+                print(f"{d.isoformat()} - skipped: output exists ({output})")
+            else:
+                print(
+                    f"{d.isoformat()} - skipped: output exists ({output}); use --overwrite"
+                )
         sys.exit(0)
 
     with tempfile.TemporaryDirectory(prefix="snapspan-frames-") as t:

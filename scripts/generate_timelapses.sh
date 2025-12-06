@@ -18,7 +18,7 @@ Options:
   --base-dir PATH       Base screenshots directory (default: $BASE_DIR)
   --fps N               Frames per second (default: $FPS)
   --overwrite           Overwrite existing output videos
-  --delete              Delete screenshots after successful generation
+  --delete              Delete screenshots after generation or when video already exists
   --python PATH         Python interpreter to run timelapse.py (default: $PYTHON)
   -h, --help            Show this help
 
@@ -78,6 +78,13 @@ for year_dir in "$BASE_DIR"/*; do
       found_any=true
 
       date_str="$year_base-$month_base-$day_base"
+
+      # Skip today's date as it is still ongoing
+      TODAY="$(date +%Y-%m-%d)"
+      if [[ "$date_str" == "$TODAY" ]]; then
+        echo "$date_str - skipped: today; ongoing"
+        continue
+      fi
 
       cmd=("$PYTHON" "$TL_SCRIPT" --date "$date_str" --base-dir "$BASE_DIR" --fps "$FPS" --skip-if-existing)
       [[ "$OVERWRITE" == true ]] && cmd+=("--overwrite")
