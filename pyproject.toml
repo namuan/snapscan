@@ -1,0 +1,44 @@
+[project]
+name = "snapspan"
+version = "0.0.1"
+description = "Unified multi-monitor screenshots and timelapses for macOS"
+authors = [{ name = "Namuan", email = "namuan@deskriders.dev" }]
+readme = "README.md"
+keywords = ["python", "screenshots", "timelapse", "macos"]
+requires-python = ">=3.11,<4.0"
+classifiers = [
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: MacOS",
+    "Operating System :: MacOS :: MacOS X",
+    "Topic :: Multimedia :: Graphics :: Capture :: Screen Capture",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "rumps",
+    "screeninfo",
+    "mss",
+    "Pillow",
+    "numpy",
+    "pyobjc-framework-Quartz",
+    "PyQt6",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit",
+    "autoflake",
+    "pyupgrade",
+    "pyinstaller",
+]
+
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["main"]

@@ -1,7 +1,0 @@
-rumps
-screeninfo
-mss
-Pillow
-numpy
-pyobjc-framework-Quartz
-PyQt6
