@@ -36,6 +36,12 @@ class WindowDataTimeline(QWidget):
             win_item = QTableWidgetItem(win)
             for it in (t_item, app_item, win_item):
                 it.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+
+            if aw is not None:
+                font = app_item.font()
+                font.setBold(True)
+                app_item.setFont(font)
+                win_item.setFont(font)
             self._table.setItem(i, 0, t_item)
             self._table.setItem(i, 1, app_item)
             self._table.setItem(i, 2, win_item)

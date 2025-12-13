@@ -53,7 +53,9 @@ def get_window_info():
     # Get the currently active application
     workspace = AppKit.NSWorkspace.sharedWorkspace()
     active_app = workspace.activeApplication()
-    active_app_name = active_app["NSApplicationName"]
+    active_app_name = active_app.get("NSApplicationName", "Unknown")
+    active_app_pid = active_app.get("NSApplicationProcessIdentifier")
+    active_app_bundle_id = active_app.get("NSApplicationBundleIdentifier")
 
     # Get all windows
     window_list = Quartz.CGWindowListCopyWindowInfo(
@@ -63,21 +65,42 @@ def get_window_info():
     )
 
     window_info = []
+    focused_window_name = None
 
     for window in window_list:
         app_name = window.get("kCGWindowOwnerName", "Unknown")
+        owner_pid = window.get("kCGWindowOwnerPID")
         window_name = window.get("kCGWindowName", "Untitled")
 
         if window_name:
+            if isinstance(active_app_pid, int) and isinstance(owner_pid, int):
+                is_active = owner_pid == active_app_pid
+            else:
+                is_active = app_name == active_app_name
+
+            is_focused_window = False
+            if is_active and focused_window_name is None:
+                focused_window_name = window_name
+                is_focused_window = True
+
             window_info.append(
                 {
                     "app_name": app_name,
                     "window_name": window_name,
-                    "is_active": app_name == active_app_name,
+                    "owner_pid": owner_pid,
+                    "is_active": is_active,
+                    "is_focused_window": is_focused_window,
                 }
             )
 
-    return {"timestamp": datetime.now().isoformat(), "windows": window_info}
+    return {
+        "timestamp": datetime.now().isoformat(),
+        "focused_app_name": active_app_name,
+        "focused_app_pid": active_app_pid,
+        "focused_app_bundle_id": active_app_bundle_id,
+        "focused_window_name": focused_window_name,
+        "windows": window_info,
+    }
 
 
 def save_to_file(data, file_path):

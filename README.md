@@ -10,8 +10,9 @@ One click, all screens, unified
 - Save screenshots with optimization and compression
 - Detect changes between consecutive screenshots
 - Schedule screenshot captures at regular intervals (every 60 seconds)
-- Save timestamped list of all running applications
-- Highlight currently active window
+- Save timestamped list of on-screen windows
+- Capture focused application (PID-based) and best-effort focused window title
+- Highlight focused app/window in the timeline viewer
 
 ## Usage
 

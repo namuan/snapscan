@@ -4,4 +4,5 @@ mss
 Pillow
 numpy
 pyobjc-framework-Quartz
+pyobjc-framework-Cocoa
 PyQt6
